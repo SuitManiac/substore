@@ -121,7 +121,7 @@ async function operator(proxies = [], targetPlatform, context) {
         };
         $.info(`[${proxy.name}] countryCode: ${api.countryCode}, aso: ${api.aso}`);
         if ((api.countryCode || api.aso) && eval(formatter({ api, format: valid }))) {
-          proxy.name = formatter({ proxy, api, format });
+          proxy.name = formatter({ format, proxy, api});
           proxy._entrance = api;
           if (cacheEnabled) {
             $.info(`[${proxy.name}] 设置成功缓存`);
