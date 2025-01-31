@@ -14,7 +14,7 @@
  * - [timeout] 请求超时(单位: 毫秒) 默认 5000
  * - [api] 测入口的 API . 默认为 http://ip-api.com/json/{{proxy.server}}?lang=zh-CN
  * - [format] 自定义格式, 从 节点(proxy) 和 入口(api)中取数据. 默认为: {{api.country}} {{api.isp}} - {{proxy.name}}
- *            当使用 internal 时, 默认为 {{api.countryCode}} {{api.aso}} - {{proxy.name}}
+ *            当使用 internal 时, 默认为 {{proxy.name}}-{{api.country}} {{api.isp}}
  * - [valid] 验证 api 请求是否合法. 默认: ProxyUtils.isIP('{{api.ip || api.query}}')
  *           当使用 internal 时, 默认为 "{{api.countryCode || api.aso}}".length > 0
  * - [uniq_key] 设置缓存唯一键名包含的节点数据字段名匹配正则. 默认为 ^server$ 即服务器地址相同的节点共享缓存
@@ -37,7 +37,7 @@ async function operator(proxies = [], targetPlatform, context) {
   const mmdb_country_path = $arguments.mmdb_country_path;
   const mmdb_asn_path = $arguments.mmdb_asn_path;
   let valid = $arguments.valid || `ProxyUtils.isIP('{{api.ip || api.query}}')`;
-  let format = $arguments.format || `{{api.country}} {{api.isp}} - {{proxy.name}}`;
+  let format = $arguments.format || `{{proxy.name}}-{{api.country}} {{api.isp}}`;
   let utils;
 
   // 初始化工具类
