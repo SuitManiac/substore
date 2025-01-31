@@ -1,13 +1,4 @@
 /**
- * 节点信息(入口版)
- *
- * ⚠️ 本脚本不进行域名解析 如有需要 可在节点操作中添加域名解析
- *
- * 查看说明: https://t.me/zhetengsha/1358
- *
- * 落地版脚本请查看: https://t.me/zhetengsha/1269
- *
- * 欢迎加入 Telegram 群组 https://t.me/zhetengsha
  *
  * 参数
  * - [retries] 重试次数 默认 1
