@@ -47,7 +47,7 @@ async function operator(proxies = [], targetPlatform, context) {
   const mmdb_country_path = $arguments.mmdb_country_path
   const mmdb_asn_path = $arguments.mmdb_asn_path
   let valid = $arguments.valid || `ProxyUtils.isIP('{{api.ip || api.query}}')`
-  let format = $arguments.format || `{{proxy.name}}-{{api.country}} {{api.isp}}`
+  let format = $arguments.format || `{{proxy.name}}-{{api.isp}}`
   let utils
   if (internal) {
     if (isNode) {
@@ -71,7 +71,7 @@ async function operator(proxies = [], targetPlatform, context) {
       }
       utils = $utils
     }
-    format = $arguments.format || `{{proxy.name}}-{{api.countryCode}} {{api.aso}}`
+    format = $arguments.format || `{{proxy.name}}-{{api.aso}}`
     valid = $arguments.valid || `"{{api.countryCode || api.aso}}".length > 0`
   }
   const ignore_failed_error = $arguments.ignore_failed_error
