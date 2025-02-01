@@ -46,7 +46,7 @@ async function operator(proxies = [], targetPlatform, context) {
   const mmdb_country_path = $arguments.mmdb_country_path;
   const mmdb_asn_path = $arguments.mmdb_asn_path;
   let valid = $arguments.valid || `ProxyUtils.isIP('{{api.ip || api.query}}')`;
-  let format = $arguments.format || `{{api.country}} {{api.isp}} - {{proxy.name}}`;
+  let format = $arguments.format || `{{proxy.name}}-{{api.country}} {{api.isp}} `;
   let utils;
 
   // 初始化内部方法工具
