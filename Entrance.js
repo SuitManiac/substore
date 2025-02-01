@@ -121,7 +121,7 @@ async function operator(proxies = [], targetPlatform, context) {
         if (cached.api) {
           $.info(`[${proxy.name}] 使用成功缓存`);
           $.log(`[${proxy.name}] api: ${JSON.stringify(cached.api, null, 2)}`);
-          proxy.name = formatter({ format, proxy, api: cached.api}); // 格式化节点名称
+          proxy.name = formatter({ format, proxy, api}); // 格式化节点名称
           proxy._entrance = cached.api; // 附加 _entrance 字段
           return;
         } else {
