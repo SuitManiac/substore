@@ -60,7 +60,7 @@ async function operator(proxies = [], targetPlatform, context) {
       }
       utils = $utils; // 使用 Surge/Loon 提供的工具
     }
-    format = $arguments.format || `{{api.countryCode}} {{api.aso}} - {{proxy.name}}`; // 使用内部方法时的默认格式
+    format = $arguments.format || `{{proxy.name}}-{{api.isp}}`; // 使用内部方法时的默认格式
     valid = $arguments.valid || `"{{api.countryCode || api.aso}}".length > 0`; // 使用内部方法时的验证表达式
   }
 
