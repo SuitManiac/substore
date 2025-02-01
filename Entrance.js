@@ -2,13 +2,7 @@
  * 节点信息(入口版)
  *
  * ⚠️ 本脚本不进行域名解析 如有需要 可在节点操作中添加域名解析
- *
- * 查看说明: https://t.me/zhetengsha/1358
- *
- * 落地版脚本请查看: https://t.me/zhetengsha/1269
- *
- * 欢迎加入 Telegram 群组 https://t.me/zhetengsha
- *
+ 
  * 参数
  * - [retries] 重试次数 默认 1
  * - [retry_delay] 重试延时(单位: 毫秒) 默认 1000
@@ -40,54 +34,56 @@
  */
 
 async function operator(proxies = [], targetPlatform, context) {
-  const $ = $substore;
-  const { isNode } = $.env;
-  const internal = $arguments.internal;
-  const mmdb_country_path = $arguments.mmdb_country_path;
-  const mmdb_asn_path = $arguments.mmdb_asn_path;
-  let valid = $arguments.valid || `ProxyUtils.isIP('{{api.ip || api.query}}')`;
-  let format = $arguments.format || `{{proxy.name}}-{{api.country}} {{api.isp}} `;
-  let utils;
+  const $ = $substore; // 获取 Sub-Store 的全局对象
+  const { isNode } = $.env; // 判断当前环境是否为 Node.js
+  const internal = $arguments.internal; // 是否使用内部方法获取 IP 信息
+  const mmdb_country_path = $arguments.mmdb_country_path; // GeoLite2 Country 数据库路径
+  const mmdb_asn_path = $arguments.mmdb_asn_path; // GeoLite2 ASN 数据库路径
+  let valid = $arguments.valid || `ProxyUtils.isIP('{{api.ip || api.query}}')`; // 验证 API 请求是否合法的表达式
+  let format = $arguments.format || `{{api.country}} {{api.isp}} - {{proxy.name}}`; // 自定义格式
+  let utils; // 工具对象，用于内部方法获取 IP 信息
 
   // 初始化内部方法工具
   if (internal) {
     if (isNode) {
+      // 如果是 Node.js 环境，使用 MMDB 工具
       utils = new ProxyUtils.MMDB({ country: mmdb_country_path, asn: mmdb_asn_path });
       $.info(
         `[MMDB] GeoLite2 Country 数据库文件路径: ${mmdb_country_path || eval('process.env.SUB_STORE_MMDB_ASN_PATH')}`
       );
       $.info(`[MMDB] GeoLite2 ASN 数据库文件路径: ${mmdb_asn_path || eval('process.env.SUB_STORE_MMDB_COUNTRY_PATH')}`);
     } else {
+      // 如果不是 Node.js 环境，检查是否支持内部方法
       if (typeof $utils === 'undefined' || typeof $utils.geoip === 'undefined' || typeof $utils.ipaso === 'undefined') {
         $.error(`目前仅支持 Surge/Loon(build >= 692) 等有 $utils.ipaso 和 $utils.geoip API 的 App`);
         throw new Error('不支持使用内部方法获取 IP 信息, 请查看日志');
       }
-      utils = $utils;
+      utils = $utils; // 使用 Surge/Loon 提供的工具
     }
-    format = $arguments.format || `{{proxy.name}}-{{api.countryCode}} {{api.aso}}`;
-    valid = $arguments.valid || `"{{api.countryCode || api.aso}}".length > 0`;
+    format = $arguments.format || `{{api.countryCode}} {{api.aso}} - {{proxy.name}}`; // 使用内部方法时的默认格式
+    valid = $arguments.valid || `"{{api.countryCode || api.aso}}".length > 0`; // 使用内部方法时的验证表达式
   }
 
-  const ignore_failed_error = $arguments.ignore_failed_error;
-  const remove_failed = $arguments.remove_failed;
-  const entranceEnabled = $arguments.entrance;
-  const cacheEnabled = $arguments.cache;
-  const uniq_key = $arguments.uniq_key || '^server$';
-  const cache = scriptResourceCache;
-  const method = $arguments.method || 'get';
-  const url = $arguments.api || `http://ip-api.com/json/{{proxy.server}}?lang=zh-CN`;
-  const concurrency = parseInt($arguments.concurrency || 10); // 一组并发数
+  const ignore_failed_error = $arguments.ignore_failed_error; // 是否忽略失败缓存
+  const remove_failed = $arguments.remove_failed; // 是否移除失败的节点
+  const entranceEnabled = $arguments.entrance; // 是否在节点上附加 _entrance 字段
+  const cacheEnabled = $arguments.cache; // 是否使用缓存
+  const uniq_key = $arguments.uniq_key || '^server$'; // 缓存唯一键名的正则表达式
+  const cache = scriptResourceCache; // 缓存对象
+  const method = $arguments.method || 'get'; // 请求方法，默认为 GET
+  const url = $arguments.api || `http://ip-api.com/json/{{proxy.server}}?lang=zh-CN`; // 测入口的 API
+  const concurrency = parseInt($arguments.concurrency || 10); // 并发数，默认为 10
 
   // 并发执行节点检测
   await executeAsyncTasks(
-    proxies.map(proxy => () => check(proxy)),
-    { concurrency }
+    proxies.map(proxy => () => check(proxy)), // 将每个节点的检测任务映射为一个函数
+    { concurrency } // 控制并发数
   );
 
   // 移除失败的节点
   if (remove_failed) {
     proxies = proxies.filter(p => {
-      if (remove_failed && !p._entrance) {
+      if (remove_failed && !p._entrance) { // 如果节点没有 _entrance 字段，则认为失败
         return false;
       }
       return true;
@@ -98,13 +94,13 @@ async function operator(proxies = [], targetPlatform, context) {
   if (!entranceEnabled) {
     proxies = proxies.map(p => {
       if (!entranceEnabled) {
-        delete p._entrance;
+        delete p._entrance; // 删除 _entrance 字段
       }
       return p;
     });
   }
 
-  return proxies;
+  return proxies; // 返回处理后的节点列表
 
   // 检测节点
   async function check(proxy) {
@@ -112,21 +108,21 @@ async function operator(proxies = [], targetPlatform, context) {
       ? `entrance:${url}:${format}:${internal}:${JSON.stringify(
           Object.fromEntries(
             Object.entries(proxy).filter(([key]) => {
-              const re = new RegExp(uniq_key);
+              const re = new RegExp(uniq_key); // 根据正则表达式过滤节点字段
               return re.test(key);
             })
           )
         )}`
-      : undefined;
+      : undefined; // 生成缓存唯一键名
 
     try {
-      const cached = cache.get(id);
+      const cached = cache.get(id); // 获取缓存
       if (cacheEnabled && cached) {
         if (cached.api) {
           $.info(`[${proxy.name}] 使用成功缓存`);
           $.log(`[${proxy.name}] api: ${JSON.stringify(cached.api, null, 2)}`);
-          proxy.name = formatter({ proxy, api: cached.api, format });
-          proxy._entrance = cached.api;
+          proxy.name = formatter({ proxy, api: cached.api, format }); // 格式化节点名称
+          proxy._entrance = cached.api; // 附加 _entrance 字段
           return;
         } else {
           if (ignore_failed_error) {
@@ -139,150 +135,152 @@ async function operator(proxies = [], targetPlatform, context) {
       }
 
       // 请求
-      const startedAt = Date.now();
+      const startedAt = Date.now(); // 记录请求开始时间
       let api = {};
       if (internal) {
+        // 使用内部方法获取 IP 信息
         api = {
-          countryCode: utils.geoip(proxy.server) || '',
-          aso: utils.ipaso(proxy.server) || '',
+          countryCode: utils.geoip(proxy.server) || '', // 获取国家代码
+          aso: utils.ipaso(proxy.server) || '', // 获取 ASO 信息
         };
         $.info(`[${proxy.name}] countryCode: ${api.countryCode}, aso: ${api.aso}`);
-        if ((api.countryCode || api.aso) && eval(formatter({ api, format: valid }))) {
-          proxy.name = formatter({ proxy, api, format });
-          proxy._entrance = api;
+        if ((api.countryCode || api.aso) && eval(formatter({ api, format: valid }))) { // 验证 IP 信息
+          proxy.name = formatter({ format, proxy, api}); // 格式化节点名称
+          proxy._entrance = api; // 附加 _entrance 字段
           if (cacheEnabled) {
             $.info(`[${proxy.name}] 设置成功缓存`);
-            cache.set(id, { api });
+            cache.set(id, { api }); // 设置缓存
           }
         } else {
           if (cacheEnabled) {
             $.info(`[${proxy.name}] 设置失败缓存`);
-            cache.set(id, {});
+            cache.set(id, {}); // 设置失败缓存
           }
         }
       } else {
+        // 使用外部 API 获取 IP 信息
         const res = await http({
           method,
           headers: {
             'User-Agent':
               'Mozilla/5.0 (iPhone; CPU iPhone OS 17_4 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.3.1 Mobile/15E148 Safari/604.1',
           },
-          url: formatter({ proxy, format: url }),
+          url: formatter({ proxy, format: url }), // 格式化请求 URL
         });
-        api = String(lodash_get(res, 'body'));
+        api = String(lodash_get(res, 'body')); // 获取响应体
         try {
-          api = JSON.parse(api);
+          api = JSON.parse(api); // 尝试解析 JSON
         } catch (e) {}
-        const status = parseInt(res.status || res.statusCode || 200);
-        let latency = `${Date.now() - startedAt}`;
+        const status = parseInt(res.status || res.statusCode || 200); // 获取 HTTP 状态码
+        let latency = `${Date.now() - startedAt}`; // 计算请求延迟
         $.info(`[${proxy.name}] status: ${status}, latency: ${latency}`);
-        if (status == 200 && eval(formatter({ api, format: valid }))) {
-          proxy.name = formatter({ proxy, api, format });
-          proxy._entrance = api;
+        if (status == 200 && eval(formatter({ api, format: valid }))) { // 验证 API 响应
+          proxy.name = formatter({ format, proxy, api }); // 格式化节点名称
+          proxy._entrance = api; // 附加 _entrance 字段
           if (cacheEnabled) {
             $.info(`[${proxy.name}] 设置成功缓存`);
-            cache.set(id, { api });
+            cache.set(id, { api }); // 设置缓存
           }
         } else {
           if (cacheEnabled) {
             $.info(`[${proxy.name}] 设置失败缓存`);
-            cache.set(id, {});
+            cache.set(id, {}); // 设置失败缓存
           }
         }
       }
-      $.log(`[${proxy.name}] api: ${JSON.stringify(api, null, 2)}`);
+      $.log(`[${proxy.name}] api: ${JSON.stringify(api, null, 2)}`); // 记录 API 响应
     } catch (e) {
-      $.error(`[${proxy.name}] ${e.message ?? e}`);
+      $.error(`[${proxy.name}] ${e.message ?? e}`); // 记录错误
       if (cacheEnabled) {
         $.info(`[${proxy.name}] 设置失败缓存`);
-        cache.set(id, {});
+        cache.set(id, {}); // 设置失败缓存
       }
     }
   }
 
   // HTTP 请求
   async function http(opt = {}) {
-    const METHOD = opt.method || 'get';
-    const TIMEOUT = parseFloat(opt.timeout || $arguments.timeout || 5000);
-    const RETRIES = parseFloat(opt.retries ?? $arguments.retries ?? 1);
-    const RETRY_DELAY = parseFloat(opt.retry_delay ?? $arguments.retry_delay ?? 1000);
+    const METHOD = opt.method || 'get'; // 请求方法
+    const TIMEOUT = parseFloat(opt.timeout || $arguments.timeout || 5000); // 请求超时时间
+    const RETRIES = parseFloat(opt.retries ?? $arguments.retries ?? 1); // 重试次数
+    const RETRY_DELAY = parseFloat(opt.retry_delay ?? $arguments.retry_delay ?? 1000); // 重试延时
 
     let count = 0;
     const fn = async () => {
       try {
-        return await $.http[METHOD]({ ...opt, timeout: TIMEOUT });
+        return await $.http[METHOD]({ ...opt, timeout: TIMEOUT }); // 发起 HTTP 请求
       } catch (e) {
         if (count < RETRIES) {
           count++;
-          const delay = RETRY_DELAY * count;
-          await $.wait(delay);
-          return await fn();
+          const delay = RETRY_DELAY * count; // 计算重试延时
+          await $.wait(delay); // 等待延时
+          return await fn(); // 重试请求
         } else {
-          throw e;
+          throw e; // 抛出错误
         }
       }
     };
-    return await fn();
+    return await fn(); // 执行请求
   }
 
   // 从对象中获取指定路径的值
   function lodash_get(source, path, defaultValue = undefined) {
-    const paths = path.replace(/\[(\d+)\]/g, '.$1').split('.');
+    const paths = path.replace(/\[(\d+)\]/g, '.$1').split('.'); // 将路径转换为数组
     let result = source;
     for (const p of paths) {
-      result = Object(result)[p];
+      result = Object(result)[p]; // 逐级获取属性值
       if (result === undefined) {
-        return defaultValue;
+        return defaultValue; // 如果未找到，返回默认值
       }
     }
-    return result;
+    return result; // 返回找到的值
   }
 
   // 格式化字符串
   function formatter({ proxy = {}, api = {}, format = '' }) {
-    let f = format.replace(/\{\{(.*?)\}\}/g, '${$1}');
-    return eval(`\`${f}\``);
+    let f = format.replace(/\{\{(.*?)\}\}/g, '${$1}'); // 替换 {{}} 为模板字符串
+    return eval(`\`${f}\``); // 执行模板字符串
   }
 
   // 并发执行任务
   function executeAsyncTasks(tasks, { wrap, result, concurrency = 1 } = {}) {
     return new Promise(async (resolve, reject) => {
       try {
-        let running = 0;
-        const results = [];
-        let index = 0;
+        let running = 0; // 当前正在运行的任务数
+        const results = []; // 任务结果
+        let index = 0; // 任务索引
 
         function executeNextTask() {
           while (index < tasks.length && running < concurrency) {
-            const taskIndex = index++;
-            const currentTask = tasks[taskIndex];
-            running++;
+            const taskIndex = index++; // 获取当前任务索引
+            const currentTask = tasks[taskIndex]; // 获取当前任务
+            running++; // 增加正在运行的任务数
 
             currentTask()
               .then(data => {
                 if (result) {
-                  results[taskIndex] = wrap ? { data } : data;
+                  results[taskIndex] = wrap ? { data } : data; // 存储任务结果
                 }
               })
               .catch(error => {
                 if (result) {
-                  results[taskIndex] = wrap ? { error } : error;
+                  results[taskIndex] = wrap ? { error } : error; // 存储任务错误
                 }
               })
               .finally(() => {
-                running--;
-                executeNextTask();
+                running--; // 减少正在运行的任务数
+                executeNextTask(); // 执行下一个任务
               });
           }
 
           if (running === 0) {
-            return resolve(result ? results : undefined);
+            return resolve(result ? results : undefined); // 所有任务完成后返回结果
           }
         }
 
-        await executeNextTask();
+        await executeNextTask(); // 开始执行任务
       } catch (e) {
-        reject(e);
+        reject(e); // 捕获错误
       }
     });
   }
