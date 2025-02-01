@@ -64,7 +64,7 @@ async function operator(proxies = [], targetPlatform, context) {
       }
       utils = $utils;
     }
-    format = $arguments.format || `{{proxy.name}}-{{api.countryCode}} {{api.aso}} - {{proxy.name}}`;
+    format = $arguments.format || `{{proxy.name}}-{{api.countryCode}} {{api.aso}}`;
     valid = $arguments.valid || `"{{api.countryCode || api.aso}}".length > 0`;
   }
 
