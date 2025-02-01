@@ -40,7 +40,7 @@ async function operator(proxies = [], targetPlatform, context) {
   const mmdb_country_path = $arguments.mmdb_country_path; // GeoLite2 Country 数据库路径
   const mmdb_asn_path = $arguments.mmdb_asn_path; // GeoLite2 ASN 数据库路径
   let valid = $arguments.valid || `ProxyUtils.isIP('{{api.ip || api.query}}')`; // 验证 API 请求是否合法的表达式
-  let format = $arguments.format || `{{proxy.name}}-{{api.isp}} - `; // 自定义格式
+  let format = $arguments.format || `{{proxy.name}}-{{api.isp}}`; // 自定义格式
   let utils; // 工具对象，用于内部方法获取 IP 信息
 
   // 初始化内部方法工具
@@ -121,7 +121,7 @@ async function operator(proxies = [], targetPlatform, context) {
         if (cached.api) {
           $.info(`[${proxy.name}] 使用成功缓存`);
           $.log(`[${proxy.name}] api: ${JSON.stringify(cached.api, null, 2)}`);
-          proxy.name = formatter({ format }); // 格式化节点名称
+          proxy.name = formatter({ format, proxy, api: cached.api}); // 格式化节点名称
           proxy._entrance = cached.api; // 附加 _entrance 字段
           return;
         } else {
