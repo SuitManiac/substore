@@ -1,4 +1,3 @@
-
 /**
  * 节点信息(入口版)
  *
@@ -349,4 +348,3 @@ async function operator(proxies = [], targetPlatform, context) {
     })
   }
 }
-
