@@ -16,7 +16,7 @@
  * - [method] 请求方法. 默认 get
  * - [timeout] 请求超时(单位: 毫秒) 默认 5000
  * - [api] 测入口的 API . 默认为 http://ip-api.com/json/{{proxy.server}}?lang=zh-CN
- * - [format] 自定义格式, 从 节点(proxy) 和 入口(api)中取数据. 默认为: {{api.countryCode api.country api.regionName}} {{api.regionName}}
+ * - [format] 自定义格式, 从 节点(proxy) 和 入口(api)中取数据. 默认为: {{api.countryCode - api.country - api.regionName}}
  *            当使用 internal 时, 默认为 {{api.countryCode}} {{api.regionName}} {{api.aso}} - {{proxy.name}}
  * - [valid] 验证 api 请求是否合法. 默认: ProxyUtils.isIP('{{api.ip || api.query}}')
  *           当使用 internal 时, 默认为 "{{api.countryCode || api.aso}}".length > 0
@@ -40,7 +40,7 @@ async function operator(proxies = [], targetPlatform, context) {
   const mmdb_country_path = $arguments.mmdb_country_path; // GeoLite2 Country 数据库路径
   const mmdb_asn_path = $arguments.mmdb_asn_path; // GeoLite2 ASN 数据库路径
   let valid = $arguments.valid || `ProxyUtils.isIP('{{api.ip || api.query}}')`; // 验证 API 请求是否合法的表达式
-  let format = $arguments.format || `{{api.countryCode api.country api.regionName}} {{api.regionName}}`; // 自定义格式
+  let format = $arguments.format || `{{api.countryCode - api.country - api.regionName}}`; // 自定义格式
   let utils; // 工具对象，用于内部方法获取 IP 信息
 
   // 初始化内部方法工具
@@ -60,7 +60,7 @@ async function operator(proxies = [], targetPlatform, context) {
       }
       utils = $utils; // 使用 Surge/Loon 提供的工具
     }
-    format = $arguments.format || `{{api.countryCode api.country api.regionName}}`; // 使用内部方法时的默认格式
+    format = $arguments.format || `{{api.countryCode - api.country - api.regionName}}`; // 使用内部方法时的默认格式
     valid = $arguments.valid || `"{{api.countryCode || api.aso}}".length > 0`; // 使用内部方法时的验证表达式
   }
 
