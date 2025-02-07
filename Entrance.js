@@ -41,107 +41,128 @@
  */
 
 async function operator(proxies = [], targetPlatform, context) {
-  // 引入Sub-Store模块
-  const $=$substore;
-  // 获取当前运行环境是否为Node.js
-  const { isNode } = $.env;
-  // 获取是否使用内部方法获取IP信息的参数
-  const internal = $arguments.internal;
-  // 获取MaxMind GeoLite2数据库文件路径参数
-  const mmdb_country_path = $arguments.mmdb_country_path;
-  const mmdb_asn_path = $arguments.mmdb_asn_path;
-  // 获取验证API请求是否合法的默认表达式
-  let valid = $arguments.valid || `ProxyUtils.isIP('{{api.ip || api.query}}')`;
-  // 获取节点信息格式化的默认字符串
-  let format = $arguments.format || `{{api.country}} {{api.city}}`;
-  // 初始化工具类变量
-  let utils;
+  const $=$substore
+  const internal = $arguments.internal
+  const format = `{{api.country}}-{{api.city}}` // 自定义格式为 国家-城市
+  const valid = `ProxyUtils.isIP('{{api.ip || api.query}}')`
+  const ignore_failed_error = $arguments.ignore_failed_error
+  const remove_failed = $arguments.remove_failed
+  const entranceEnabled = $arguments.entrance
+  const cacheEnabled = $arguments.cache
+  const uniq_key = $arguments.uniq_key || '^server$'
+  const cache = scriptResourceCache
+  const method = $arguments.method || 'get'
+  const url = $arguments.api || `http://ip-api.com/json/{{proxy.server}}?lang=zh-CN`
+  const concurrency = parseInt($arguments.concurrency || 10) // 一组并发数
 
-  // 如果使用内部方法获取IP信息
-  if (internal) {
-    if (isNode) {
-      // 在Node.js环境下初始化MMDB工具类
-      utils = new ProxyUtils.MMDB({ country: mmdb_country_path, asn: mmdb_asn_path });
-      // 输出数据库文件路径信息
-      $.info(`[MMDB] GeoLite2 Country 数据库文件路径:${mmdb_country_path || process.env.SUB_STORE_MMDB_ASN_PATH}`);
-      $.info(`[MMDB] GeoLite2 ASN 数据库文件路径:${mmdb_asn_path || process.env.SUB_STORE_MMDB_COUNTRY_PATH}`);
-    } else {
-      // 在非Node.js环境下检查是否支持内部方法
-      if (typeof $utils === 'undefined' || typeof$utils.geoip === 'undefined' || typeof $utils.ipaso === 'undefined') {
-        $.error('目前仅支持 Surge/Loon(build >= 692) 等有$utils.ipaso 和 $utils.geoip API 的 App');
-        throw new Error('不支持使用内部方法获取 IP 信息, 请查看日志');
-      }
-      // 设置工具类变量
-      utils = $utils;
-    }
-    // 设置内部方法下的默认格式和验证表达式
-    format = $arguments.format || `{{api.country}} {{api.city}}`;
-    valid = $arguments.valid || `"{{api.countryCode || api.aso}}".length > 0`;
-  }
+  await executeAsyncTasks(
+    proxies.map(proxy => () => check(proxy)),
+    { concurrency }
+  )
 
-  // 获取其他参数
-  const ignore_failed_error = $arguments.ignore_failed_error;
-  const remove_failed = $arguments.remove_failed;
-  const entranceEnabled = $arguments.entrance;
-  const cacheEnabled = $arguments.cache;
-  const uniq_key = $arguments.uniq_key || '^server$';
-  const cache = scriptResourceCache;
-  const method = $arguments.method || 'get';
-  const url = $arguments.api || `http://ip-api.com/json/{{proxy.server}}?lang=zh-CN`;
-  const concurrency = parseInt($arguments.concurrency || 10);
-
-  // 并发执行节点检查任务
-  await executeAsyncTasks(proxies.map(proxy => () => check(proxy)), { concurrency });
-
-  // 如果需要移除失败的节点
   if (remove_failed) {
-    proxies = proxies.filter(p => p._entrance);
+    proxies = proxies.filter(p => p._entrance)
   }
 
-  // 如果不需要在节点上附加入口信息
   if (!entranceEnabled) {
-    proxies = proxies.map(p => ({ ...p, _entrance: undefined }));
+    proxies = proxies.map(p => ({ ...p, _entrance: undefined }))
   }
 
-  // 返回处理后的节点数组
-  return proxies;
+  return proxies
 
-  // 定义检查节点信息的异步函数
   async function check(proxy) {
-    const id = cacheEnabled ? generateCacheId(proxy) : undefined;
+    const id = cacheEnabled ? `entrance:${url}:${format}:${internal}:${JSON.stringify(proxy)}` : undefined
     try {
-      const cached = cache.get(id);
+      const cached = cache.get(id)
       if (cacheEnabled && cached) {
         if (cached.api) {
-          $.info(`[${proxy.name}] 使用成功缓存`);
-          proxy.name = formatter({ proxy, api: cached.api, format });
-          proxy._entrance = cached.api;
-          return;
+          proxy.name = formatter({ proxy, api: cached.api, format })
+          proxy._entrance = cached.api
+          return
         } else if (!ignore_failed_error) {
-          return;
+          return
         }
       }
-
-      const api = internal ? await getInternalData(proxy) : await makeHttpRequest(proxy);
-      if (api && eval(formatter({ api, format: valid }))) {
-        proxy.name = formatter({ proxy, api, format });
-        proxy._entrance = api;
-        if (cacheEnabled) {
-          cache.set(id, { api });
+      let api = {}
+      if (internal) {
+        api = {
+          countryCode: utils.geoip(proxy.server) || '',
+          aso: utils.ipaso(proxy.server) || '',
         }
-      } else if (cacheEnabled) {
-        cache.set(id, {});
+        if ((api.countryCode || api.aso) && eval(formatter({ api, format: valid }))) {
+          proxy.name = formatter({ proxy, api, format })
+          proxy._entrance = api
+          if (cacheEnabled) {
+            cache.set(id, { api })
+          }
+        } else if (cacheEnabled) {
+          cache.set(id, {})
+        }
+      } else {
+        const res = await http({ method, url: formatter({ proxy, format: url }) })
+        api = JSON.parse(res.body)
+        if (res.status == 200 && eval(formatter({ api, format: valid }))) {
+          proxy.name = formatter({ proxy, api, format })
+          proxy._entrance = api
+          if (cacheEnabled) {
+            cache.set(id, { api })
+          }
+        } else if (cacheEnabled) {
+          cache.set(id, {})
+        }
       }
     } catch (e) {
-      $.error(`[${proxy.name}] ${e.message ?? e}`);
       if (cacheEnabled) {
-        cache.set(id, {});
+        cache.set(id, {})
       }
     }
   }
 
-  // 生成缓存ID的函数
-  function generateCacheId(proxy) {
-    return `entrance:${url}:${format}:${internal}:${JSON.stringify(
-      Object.fromEntries(
-        Object.entries(proxy).filter(([key]) => new RegExp(
+  async function http(opt = {}) {
+    const TIMEOUT = parseFloat(opt.timeout || $arguments.timeout || 5000)
+    const RETRIES = parseFloat(opt.retries ?? $arguments.retries ?? 1)
+    const RETRY_DELAY = parseFloat(opt.retry_delay ?? $arguments.retry_delay ?? 1000)
+
+    let count = 0
+    const fn = async () => {
+      try {
+        return await $.http[opt.method || 'get']({ ...opt, timeout: TIMEOUT })
+      } catch (e) {
+        if (count < RETRIES) {
+          count++
+          await $.wait(RETRY_DELAY * count)
+          return await fn()
+        } else {
+          throw e
+        }
+      }
+    }
+    return await fn()
+  }
+
+  function formatter({ proxy = {}, api = {}, format = '' }) {
+    let f = format.replace(/\{\{(.*?)\}\}/g, '${$1}')
+    return eval(`\`${f}\``)
+  }
+
+  function executeAsyncTasks(tasks, { concurrency = 1 } = {}) {
+    return new Promise(async (resolve) => {
+      let running = 0
+      let index = 0
+
+      function executeNextTask() {
+        while (index < tasks.length && running < concurrency) {
+          running++
+          tasks[index++]().finally(() => {
+            running--
+            executeNextTask()
+          })
+        }
+        if (running === 0) resolve()
+      }
+
+      executeNextTask()
+    })
+  }
+}
+
