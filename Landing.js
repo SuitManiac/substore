@@ -4,9 +4,6 @@
  *
  * Node.js 版 可使用 http_meta_geo.js
  *
- * 查看说明: https://t.me/zhetengsha/1269
- *
- * 欢迎加入 Telegram 群组 https://t.me/zhetengsha
  *
  * 参数
  * - [retries] 重试次数 默认 1
@@ -19,7 +16,7 @@
  * - [method] 请求方法. 默认 get
  * - [api] 测落地的 API. 默认为 http://ip-api.com/json?lang=zh-CN
  *         当使用 internal 时, 默认为 http://checkip.amazonaws.com
- * - [format] 自定义格式, 从 节点(proxy) 和 落地 API 响应(api)中取数据. 默认为: {{api.country}} {{api.regionName}} {{api.isp}} - {{proxy.name}}
+ * - [format] 自定义格式, 从 节点(proxy) 和 落地 API 响应(api)中取数据. 默认为: {{api.country}} {{api.regionName}}
  *            当使用 internal 时, 默认为 {{api.countryCode}} {{api.aso}} - {{proxy.name}}
  * - [ignore_failed_error] 忽略失败缓存. 默认不忽略失败缓存. 若设置为忽略, 之前失败的结果即使有缓存也会再测一次
  * - [geo] 在节点上附加 _geo 字段(API 响应数据), 默认不附加
@@ -40,7 +37,7 @@ async function operator(proxies = [], targetPlatform, context) {
   const $ = $substore
   const { isLoon, isSurge, isNode } = $.env
   const internal = $arguments.internal
-  let format = $arguments.format || '{{api.country}} {{api.regionName}} {{api.isp}} - {{proxy.name}}'
+  let format = $arguments.format || '{{api.country}} {{api.regionName}}'
   let url = $arguments.api || 'http://ip-api.com/json?lang=zh-CN'
   if (internal) {
     // if (isSurge) {
@@ -55,7 +52,7 @@ async function operator(proxies = [], targetPlatform, context) {
       $.error(`目前仅支持 Surge/Loon(build >= 692) 等有 $utils.ipaso 和 $utils.geoip API 的 App`)
       throw new Error('不支持使用内部方法获取 IP 信息, 请查看日志')
     }
-    format = $arguments.format || `{{api.countryCode}} {{api.aso}} - {{proxy.name}}`
+    format = $arguments.format || `{{api.country}} {{api.regionName}}`
     url = $arguments.api || 'http://checkip.amazonaws.com'
   }
   const surge_http_api = $arguments.surge_http_api
